@@ -1,14 +1,134 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hello World</title>
-  <link href='/style.css' rel='stylesheet'>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pixelate + Grid + Download</title>
+<style>
+  body{background:#111;color:#eee;font-family:sans-serif;margin:0;padding:0;}
+  .wrap{display:flex;flex-wrap:wrap;gap:20px;padding:20px;}
+  canvas{background:#000;image-rendering:pixelated;}
+  .controls{flex:0 0 250px;}
+  label{display:block;margin-top:10px;}
+  input[type=range]{width:100%;}
+  button{margin-top:10px;padding:6px 10px;}
+</style>
 </head>
 <body>
-  <h1>Hello, world!</h1>
-  <button onclick="console.log('hello');">Press me</button>
-  <script defer type="text/javascript" src="/main.js"></script>
+<div class="wrap">
+  <div class="controls">
+    <input type="file" id="file" accept="image/*"><br>
+    <label>Ukuran Pixel: <span id="pxSizeLabel">8</span></label>
+    <input type="range" id="pixelSize" min="1" max="50" value="8">
+    <label><input type="checkbox" id="showGrid" checked> Tampilkan Grid</label>
+    <label>Warna Grid: <input type="color" id="gridColor" value="#66ccff"></label>
+    <label>Transparansi Grid: <input type="range" id="gridAlpha" min="0" max="1" step="0.05" value="0.6"></label>
+    <button id="downloadBtn" disabled>Unduh PNG</button>
+  </div>
+  <div>
+    <canvas id="display"></canvas>
+  </div>
+</div>
+
+<!-- Kanvas offscreen -->
+<canvas id="base" style="display:none"></canvas>
+<canvas id="small" style="display:none"></canvas>
+
+<script>
+const els = {
+  file: document.getElementById('file'),
+  display: document.getElementById('display'),
+  base: document.getElementById('base'),
+  small: document.getElementById('small'),
+  pixelSize: document.getElementById('pixelSize'),
+  pxSizeLabel: document.getElementById('pxSizeLabel'),
+  showGrid: document.getElementById('showGrid'),
+  gridColor: document.getElementById('gridColor'),
+  gridAlpha: document.getElementById('gridAlpha'),
+  downloadBtn: document.getElementById('downloadBtn'),
+};
+let imgW=0, imgH=0, imgLoaded=false;
+const baseCtx = els.base.getContext('2d');
+const smallCtx = els.small.getContext('2d');
+const dispCtx = els.display.getContext('2d');
+
+function loadImage(file){
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = ()=>{
+    imgLoaded = true;
+    imgW = img.naturalWidth;
+    imgH = img.naturalHeight;
+    els.base.width = imgW;
+    els.base.height = imgH;
+    baseCtx.drawImage(img,0,0);
+    render();
+    els.downloadBtn.disabled = false;
+    URL.revokeObjectURL(url);
+  };
+  img.src = url;
+}
+
+function render(){
+  if(!imgLoaded) return;
+  const pxSize = parseInt(els.pixelSize.value,10);
+  els.pxSizeLabel.textContent = pxSize;
+
+  // step 1: kecilkan gambar
+  const smallW = Math.ceil(imgW/pxSize);
+  const smallH = Math.ceil(imgH/pxSize);
+  els.small.width = smallW;
+  els.small.height = smallH;
+  smallCtx.imageSmoothingEnabled = false;
+  smallCtx.clearRect(0,0,smallW,smallH);
+  smallCtx.drawImage(els.base, 0,0, smallW, smallH);
+
+  // step 2: besarkan lagi
+  const outW = smallW * pxSize;
+  const outH = smallH * pxSize;
+  els.display.width = outW;
+  els.display.height = outH;
+  dispCtx.imageSmoothingEnabled = false;
+  dispCtx.clearRect(0,0,outW,outH);
+  dispCtx.drawImage(els.small, 0,0, outW, outH);
+
+  // step 3: grid
+  if(els.showGrid.checked){
+    dispCtx.save();
+    dispCtx.globalAlpha = parseFloat(els.gridAlpha.value);
+    dispCtx.strokeStyle = els.gridColor.value;
+    dispCtx.beginPath();
+    for(let x=0;x<=outW;x+=pxSize){
+      dispCtx.moveTo(x+0.5,0);
+      dispCtx.lineTo(x+0.5,outH);
+    }
+    for(let y=0;y<=outH;y+=pxSize){
+      dispCtx.moveTo(0,y+0.5);
+      dispCtx.lineTo(outW,y+0.5);
+    }
+    dispCtx.stroke();
+    dispCtx.restore();
+  }
+}
+
+function downloadPNG(){
+  const link = document.createElement('a');
+  link.download = 'pixelated.png';
+  link.href = els.display.toDataURL();
+  link.click();
+}
+
+// Events
+els.file.addEventListener('change', e=>{
+  if(e.target.files[0]) loadImage(e.target.files[0]);
+});
+['input','change'].forEach(ev=>{
+  els.pixelSize.addEventListener(ev,render);
+  els.showGrid.addEventListener(ev,render);
+  els.gridColor.addEventListener(ev,render);
+  els.gridAlpha.addEventListener(ev,render);
+});
+els.downloadBtn.addEventListener('click', downloadPNG);
+</script>
 </body>
 </html>
