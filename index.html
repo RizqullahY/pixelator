@@ -1,134 +1,88 @@
 <!DOCTYPE html>
-<html lang="id">
+<html lang="id" class="dark">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pixelate + Grid + Download</title>
-<style>
-  body{background:#111;color:#eee;font-family:sans-serif;margin:0;padding:0;}
-  .wrap{display:flex;flex-wrap:wrap;gap:20px;padding:20px;}
-  canvas{background:#000;image-rendering:pixelated;}
-  .controls{flex:0 0 250px;}
-  label{display:block;margin-top:10px;}
-  input[type=range]{width:100%;}
-  button{margin-top:10px;padding:6px 10px;}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pixelator + Grid</title>
+  <link rel="stylesheet" href="./src/output.css">
 </head>
-<body>
-<div class="wrap">
-  <div class="controls">
-    <input type="file" id="file" accept="image/*"><br>
-    <label>Ukuran Pixel: <span id="pxSizeLabel">8</span></label>
-    <input type="range" id="pixelSize" min="1" max="50" value="8">
-    <label><input type="checkbox" id="showGrid" checked> Tampilkan Grid</label>
-    <label>Warna Grid: <input type="color" id="gridColor" value="#66ccff"></label>
-    <label>Transparansi Grid: <input type="range" id="gridAlpha" min="0" max="1" step="0.05" value="0.6"></label>
-    <button id="downloadBtn" disabled>Unduh PNG</button>
-  </div>
-  <div>
-    <canvas id="display"></canvas>
-  </div>
-</div>
+<body class="transition-colors duration-500 bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex flex-col min-h-screen">
 
-<!-- Kanvas offscreen -->
-<canvas id="base" style="display:none"></canvas>
-<canvas id="small" style="display:none"></canvas>
+  <!-- Navbar -->
+  <nav class="bg-gray-200 dark:bg-gray-800 shadow-md transition-colors duration-500">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+      <h1 class="text-lg font-semibold text-gray-800 dark:text-gray-100">Pixelator + Grid</h1>
+      <a href="https://github.com/" target="_blank" class="text-gray-700 dark:text-gray-300 hover:text-blue-500 dark:hover:text-blue-400 transition-colors">GitHub</a>
+    </div>
+  </nav>
 
-<script>
-const els = {
-  file: document.getElementById('file'),
-  display: document.getElementById('display'),
-  base: document.getElementById('base'),
-  small: document.getElementById('small'),
-  pixelSize: document.getElementById('pixelSize'),
-  pxSizeLabel: document.getElementById('pxSizeLabel'),
-  showGrid: document.getElementById('showGrid'),
-  gridColor: document.getElementById('gridColor'),
-  gridAlpha: document.getElementById('gridAlpha'),
-  downloadBtn: document.getElementById('downloadBtn'),
-};
-let imgW=0, imgH=0, imgLoaded=false;
-const baseCtx = els.base.getContext('2d');
-const smallCtx = els.small.getContext('2d');
-const dispCtx = els.display.getContext('2d');
+  <!-- Main -->
+  <!-- Main -->
+  <main class="flex-1 flex flex-col gap-5 p-5 max-w-7xl mx-auto">
 
-function loadImage(file){
-  const url = URL.createObjectURL(file);
-  const img = new Image();
-  img.onload = ()=>{
-    imgLoaded = true;
-    imgW = img.naturalWidth;
-    imgH = img.naturalHeight;
-    els.base.width = imgW;
-    els.base.height = imgH;
-    baseCtx.drawImage(img,0,0);
-    render();
-    els.downloadBtn.disabled = false;
-    URL.revokeObjectURL(url);
-  };
-  img.src = url;
-}
+    <!-- Controls Bar -->
+    <div class="flex flex-wrap items-center justify-center gap-4 bg-gray-200 dark:bg-gray-800 p-4 rounded-lg shadow-md">
 
-function render(){
-  if(!imgLoaded) return;
-  const pxSize = parseInt(els.pixelSize.value,10);
-  els.pxSizeLabel.textContent = pxSize;
+      <!-- Upload -->
+      <input type="file" id="file" accept="image/*"
+        class="text-sm
+        file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 
+        file:text-sm file:font-semibold 
+        file:bg-gray-300 file:text-gray-800 hover:file:bg-gray-400 
+        dark:file:bg-gray-700 dark:file:text-gray-200 dark:hover:file:bg-gray-600">
 
-  // step 1: kecilkan gambar
-  const smallW = Math.ceil(imgW/pxSize);
-  const smallH = Math.ceil(imgH/pxSize);
-  els.small.width = smallW;
-  els.small.height = smallH;
-  smallCtx.imageSmoothingEnabled = false;
-  smallCtx.clearRect(0,0,smallW,smallH);
-  smallCtx.drawImage(els.base, 0,0, smallW, smallH);
+      <!-- Ukuran Pixel -->
+      <label class="flex items-center gap-2">
+        Ukuran Pixel:
+        <input type="number" id="pixelSize" min="1" max="50" value="8"
+          class="w-20 px-2 py-1 rounded border border-gray-400 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
+      </label>
 
-  // step 2: besarkan lagi
-  const outW = smallW * pxSize;
-  const outH = smallH * pxSize;
-  els.display.width = outW;
-  els.display.height = outH;
-  dispCtx.imageSmoothingEnabled = false;
-  dispCtx.clearRect(0,0,outW,outH);
-  dispCtx.drawImage(els.small, 0,0, outW, outH);
+      <!-- Grid Toggle -->
+      <label class="flex items-center gap-2">
+        <input type="checkbox" id="showGrid" checked> Tampilkan Grid
+      </label>
 
-  // step 3: grid
-  if(els.showGrid.checked){
-    dispCtx.save();
-    dispCtx.globalAlpha = parseFloat(els.gridAlpha.value);
-    dispCtx.strokeStyle = els.gridColor.value;
-    dispCtx.beginPath();
-    for(let x=0;x<=outW;x+=pxSize){
-      dispCtx.moveTo(x+0.5,0);
-      dispCtx.lineTo(x+0.5,outH);
-    }
-    for(let y=0;y<=outH;y+=pxSize){
-      dispCtx.moveTo(0,y+0.5);
-      dispCtx.lineTo(outW,y+0.5);
-    }
-    dispCtx.stroke();
-    dispCtx.restore();
-  }
-}
+      <!-- Warna Grid -->
+      <label class="flex items-center gap-2">
+        Warna Grid:
+        <input type="color" id="gridColor" value="#66ccff" class="w-10 h-10">
+      </label>
 
-function downloadPNG(){
-  const link = document.createElement('a');
-  link.download = 'pixelated.png';
-  link.href = els.display.toDataURL();
-  link.click();
-}
+      <!-- Transparansi Grid -->
+      <label class="flex items-center gap-2">
+        Transparansi:
+        <input type="number" id="gridAlpha" min="0" max="1" step="0.05" value="0.6"
+          class="w-20 px-2 py-1 rounded border border-gray-400 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
+      </label>
 
-// Events
-els.file.addEventListener('change', e=>{
-  if(e.target.files[0]) loadImage(e.target.files[0]);
-});
-['input','change'].forEach(ev=>{
-  els.pixelSize.addEventListener(ev,render);
-  els.showGrid.addEventListener(ev,render);
-  els.gridColor.addEventListener(ev,render);
-  els.gridAlpha.addEventListener(ev,render);
-});
-els.downloadBtn.addEventListener('click', downloadPNG);
-</script>
+      <!-- Download Button -->
+      <button id="downloadBtn" disabled
+        class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">
+        Unduh PNG
+      </button>
+    </div>
+
+    <!-- Canvas Area -->
+    <div class="flex-1 flex items-center justify-center">
+      <canvas id="display" class="border border-gray-400 dark:border-gray-600"></canvas>
+    </div>
+
+  </main>
+
+
+
+  <!-- Footer -->
+  <footer class="bg-gray-200 dark:bg-gray-800 py-4 mt-auto">
+    <div class="max-w-7xl mx-auto px-6 text-center text-sm text-gray-700 dark:text-gray-300">
+      &copy; 2025 Pixelator + Grid. Dibuat dengan ❤️ dan TailwindCSS.
+    </div>
+  </footer>
+
+  <!-- Offscreen canvas -->
+  <canvas id="base" style="display:none"></canvas>
+  <canvas id="small" style="display:none"></canvas>
+
+  <script src="pixelator.js"></script>
 </body>
 </html>
